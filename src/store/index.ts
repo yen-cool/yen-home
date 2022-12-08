@@ -107,6 +107,7 @@ function notification(
   ElNotification({
     title,
     message,
+    dangerouslyUseHTMLString: true,
     duration: 60000,
     offset: 50,
     type,
@@ -365,6 +366,7 @@ const actions: ActionTree<State, State> = {
           ) {
             if (!state.async.mint.block[runBlockNumber]) {
               await dispatch("getBlock", runBlockNumber);
+              await dispatch("showMint", runBlockNumber);
             }
           }
         }
@@ -378,7 +380,7 @@ const actions: ActionTree<State, State> = {
     }
   },
 
-  async showBlock({ state }, blockNumber: number) {
+  async showMint({ state }, blockNumber: number) {
     if (
       state.async.mint.block[blockNumber].mints.gt(0) &&
       state.sync.ether.yen
@@ -389,24 +391,24 @@ const actions: ActionTree<State, State> = {
       );
       const title = `Block ${blockNumber} Minted`;
       let type: "success" | "warning" | "info" = "info";
-      let msg = `${
+      let msg = `<div> ${
         state.async.mint.block[blockNumber].persons
       } Person Share ${utils.format.bigToString(
         state.async.mint.block[blockNumber].mints,
         18
-      )} YEN !`;
+      )} YEN </div>`;
       res.forEach((e) => {
         if (e.person == state.sync.userAddress) {
           type = "success";
           msg =
-            `You Minted ${utils.format.bigToString(
+            `<div> You Minted ${utils.format.bigToString(
               state.async.mint.block[blockNumber].mints.div(
                 state.async.mint.block[blockNumber].persons
               ),
               18
-            )} YEN,` + msg;
+            )} YEN </div>` + msg;
         }
-        msg = msg + `\n${e.person}`;
+        msg = msg + `<div> ${utils.format.string2(e.person, 8)} </div>`;
       });
       notification(title, msg, type);
     }

@@ -20,7 +20,7 @@
       </el-menu-item>
       <div class="flex-grow" />
       <el-menu-item index="-2" class="item2">
-        {{ state.sync.userAddress }}
+        {{ utils.format.string2(state.sync.userAddress, 8) }}
       </el-menu-item>
     </el-menu>
     <div>
@@ -41,6 +41,7 @@ import { State } from "./store";
 export default {
   data() {
     return {
+      utils,
       activeIndex: "1",
       toggleDark: useToggle(useDark()),
     };
@@ -76,7 +77,7 @@ export default {
 }
 
 .item2 {
-  width: 25%;
+  width: 15%;
 }
 
 .flex-grow {
