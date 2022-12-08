@@ -72,7 +72,7 @@ export default {
     await this.getTableData();
   },
   computed: mapState({
-    state: (state) => state as State,
+    state: (state:any) => state as State,
   }),
   methods: {
     ...mapActions(["getTableData"]),

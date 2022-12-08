@@ -1,11 +1,11 @@
 import { ActionTree, createStore } from "vuex";
 import { Ether } from "../network";
 import { utils, BigNumber } from "../const";
-import { YENModel } from "yen-sdk";
+import { YENModel } from "yen-contract-sdk";
 import { toRaw } from "vue";
 import { ElMessage, ElNotification } from "element-plus";
 
-export { YENModel } from "yen-sdk";
+export { YENModel } from "yen-contract-sdk";
 
 export interface Storage {}
 
@@ -91,32 +91,50 @@ const state: State = {
   },
 };
 
+function err(error: any) {
+  ElMessage({
+    message: error.toString().split("(")[0],
+    duration: 3000,
+    type: "error",
+  });
+}
+
+function notification(
+  title: string,
+  message: string,
+  type: "success" | "warning" | "info"
+) {
+  ElNotification({
+    title,
+    message,
+    duration: 60000,
+    offset: 50,
+    type,
+  });
+}
+
 const actions: ActionTree<State, State> = {
   async start({ dispatch }) {
     try {
       await dispatch("setSync");
       await dispatch("watchStorage");
-      await dispatch("runListen");
-      setInterval(dispatch, 11000, "runListen");
+      await dispatch("listenBlock");
       utils.func.log("app start success!");
-    } catch (err) {
-      utils.func.log(err);
+    } catch (error) {
+      err(error);
     }
   },
 
   async setSync({ state }) {
     await toRaw(state.sync.ether).load();
     if (state.sync.ether.singer && state.sync.ether.provider) {
-      let blockNumber;
-      [state.sync.userAddress, blockNumber] = await Promise.all([
+      [state.sync.userAddress, state.sync.thisBlock] = await Promise.all([
         toRaw(state.sync.ether.singer).getAddress(),
         toRaw(state.sync.ether.provider).getBlockNumber(),
       ]);
-      state.sync.thisBlock = blockNumber;
-      const block = await toRaw(state.sync.ether.provider).getBlock(
-        state.sync.thisBlock
-      );
-      state.sync.thisTime = block.timestamp;
+      state.sync.thisTime = (
+        await toRaw(state.sync.ether.provider).getBlock(state.sync.thisBlock)
+      ).timestamp;
     }
     if (state.sync.ether.chainId) {
       state.sync.chainId = state.sync.ether.chainId;
@@ -165,16 +183,13 @@ const actions: ActionTree<State, State> = {
         state.async.mint.personBlockList.push(personBlockList[i]);
       }
       state.async.mint.personBlockList.reverse();
-      if (state.async.mint.personBlockList.length == 0) {
+      state.async.mint.personBlockList.forEach(async (blockNumber) => {
+        if (!state.async.mint.block[blockNumber]) {
+          await dispatch("getBlock", blockNumber);
+        }
         func();
-      } else {
-        state.async.mint.personBlockList.forEach(async (blockNumber) => {
-          if (!state.async.mint.block[blockNumber]) {
-            await dispatch("getBlock", blockNumber);
-          }
-          func();
-        });
-      }
+      });
+      func();
     }
   },
 
@@ -229,12 +244,8 @@ const actions: ActionTree<State, State> = {
     if (state.sync.ether.yen) {
       try {
         await toRaw(state.sync.ether.yen).mint({}, func);
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -244,12 +255,8 @@ const actions: ActionTree<State, State> = {
     if (state.sync.ether.yen) {
       try {
         await toRaw(state.sync.ether.yen).claim({}, func);
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -264,12 +271,8 @@ const actions: ActionTree<State, State> = {
           {},
           func
         );
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -279,12 +282,8 @@ const actions: ActionTree<State, State> = {
     if (state.sync.ether.yen) {
       try {
         await toRaw(state.sync.ether.yen).stake(stakes, {}, func);
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -298,12 +297,8 @@ const actions: ActionTree<State, State> = {
           {},
           func
         );
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -313,12 +308,8 @@ const actions: ActionTree<State, State> = {
     if (state.sync.ether.yen) {
       try {
         await toRaw(state.sync.ether.yen).withdrawReward({}, func);
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -328,12 +319,8 @@ const actions: ActionTree<State, State> = {
     if (state.sync.ether.yen) {
       try {
         await toRaw(state.sync.ether.yen).exit({}, func);
-      } catch (error: any) {
-        ElMessage({
-          message: error.toString().split("(")[0],
-          duration: 3000,
-          type: "error",
-        });
+      } catch (error) {
+        err(error);
         func(null);
       }
     }
@@ -351,59 +338,77 @@ const actions: ActionTree<State, State> = {
     }
   },
 
-  async getBlockMintData({ state }) {
+  async getBlockMint({ state }) {
     if (state.sync.ether.yen) {
       const [nextBlockMint, blockMints] = await Promise.all([
         toRaw(state.sync.ether.yen).getMints(),
         toRaw(state.sync.ether.yen).blockMints(),
       ]);
-      state.async.mint.nextBlockMint = nextBlockMint.div(2).add(blockMints);
+      state.async.mint.nextBlockMint = nextBlockMint.add(blockMints).div(2);
     }
   },
 
-  async getBlockData({ state, dispatch }, func: Function) {
-    if (state.sync.ether.provider && state.sync.ether.yen) {
-      const blockNumber = await toRaw(
-        state.sync.ether.provider
-      ).getBlockNumber();
-      if (!state.async.mint.block[blockNumber]) {
-        dispatch("getBlockMintData");
-        for (
-          let runBlockNumber = state.sync.thisBlock;
-          runBlockNumber <= blockNumber;
-          runBlockNumber++
-        ) {
-          if (!state.async.mint.block[runBlockNumber]) {
-            await dispatch("getBlock", runBlockNumber);
-            func(runBlockNumber);
+  async listenBlock({ state, dispatch }) {
+    if (state.sync.ether.provider) {
+      toRaw(state.sync.ether.provider).on("block", async (blockNumber) => {
+        if (!state.async.mint.block[blockNumber]) {
+          dispatch("getBlockMint");
+          let start = state.sync.thisBlock;
+          const blockList = Object.keys(state.async.mint.block);
+          if (blockList.length > 0) {
+            start = Number(blockList[blockList.length - 1]);
+          }
+          for (
+            let runBlockNumber = start;
+            runBlockNumber <= blockNumber;
+            runBlockNumber++
+          ) {
+            if (!state.async.mint.block[runBlockNumber]) {
+              await dispatch("getBlock", runBlockNumber);
+            }
           }
         }
-      }
+      });
     }
-  },
-
-  async runListen({ state, dispatch }) {
-    await dispatch("getBlockData", async (blockNumber: number) => {
-      if (state.async.mint.block[blockNumber].persons.gt(0)) {
-        ElNotification({
-          title: `Block ${blockNumber} Minted`,
-          message: `${
-            state.async.mint.block[blockNumber].persons
-          } Person Share ${utils.format.bigToString(
-            state.async.mint.block[blockNumber].mints,
-            18
-          )} YEN !`,
-          duration: 60000,
-          offset: 50,
-          type: "info",
-        });
-      }
-    });
   },
 
   async addToken({ state }) {
     if (state.sync.ether) {
       await state.sync.ether.addToken(state.sync.yenAddress);
+    }
+  },
+
+  async showBlock({ state }, blockNumber: number) {
+    if (
+      state.async.mint.block[blockNumber].mints.gt(0) &&
+      state.sync.ether.yen
+    ) {
+      const res = await toRaw(state.sync.ether.yen).getMintEventList(
+        blockNumber,
+        blockNumber
+      );
+      const title = `Block ${blockNumber} Minted`;
+      let type: "success" | "warning" | "info" = "info";
+      let msg = `${
+        state.async.mint.block[blockNumber].persons
+      } Person Share ${utils.format.bigToString(
+        state.async.mint.block[blockNumber].mints,
+        18
+      )} YEN !`;
+      res.forEach((e) => {
+        if (e.person == state.sync.userAddress) {
+          type = "success";
+          msg =
+            `You Minted ${utils.format.bigToString(
+              state.async.mint.block[blockNumber].mints.div(
+                state.async.mint.block[blockNumber].persons
+              ),
+              18
+            )} YEN,` + msg;
+        }
+        msg = msg + `\n${e.person}`;
+      });
+      notification(title, msg, type);
     }
   },
 };

@@ -39,9 +39,9 @@
       <el-form label-width="30%">
         <el-table :data="mintedList" stripe height="300" style="width: 100%">
           <el-table-column prop="block" label="Block" width="150" />
-          <el-table-column prop="minted" label="Minted" width="200" />
+          <el-table-column prop="minted" label="Your Minted" width="200" />
           <el-table-column prop="person" label="Person" width="150" />
-          <el-table-column prop="total" label="Total" />
+          <el-table-column prop="total" label="Total Minted" />
         </el-table>
       </el-form>
     </el-card>
@@ -68,15 +68,13 @@ export default {
     await this.getMintData(this.getMintedData);
   },
   computed: mapState({
-    state: (state) => state as State,
+    state: (state:any) => state as State,
   }),
   methods: {
     ...mapActions([
       "getMintData",
-      "getBlockMintData",
       "mint",
-      "claim",
-      "getBlock",
+      "claim"
     ]),
     async getMintedData() {
       const mintedList: {
@@ -118,26 +116,7 @@ export default {
             this.mintLoad = false;
           } else if (e.blockNumber) {
             this.mintLoad = false;
-            await this.getBlock(e.blockNumber);
-            ElNotification({
-              title: `Block ${e.blockNumber} Minted`,
-              message: `You Minted ${utils.format.bigToString(
-                this.state.async.mint.block[e.blockNumber].mints.div(
-                  this.state.async.mint.block[e.blockNumber].persons
-                ),
-                18
-              )} YEN, ${
-                this.state.async.mint.block[e.blockNumber].persons
-              } Person Share ${utils.format.bigToString(
-                this.state.async.mint.block[e.blockNumber].mints,
-                18
-              )} YEN !`,
-              duration: 36000,
-              offset: 50,
-              type: "success",
-            });
             await this.getMintData(this.getMintedData);
-            this.getBlockMintData();
           }
         }
       );

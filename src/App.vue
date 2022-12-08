@@ -52,7 +52,7 @@ export default {
     });
   },
   computed: mapState({
-    state: (state) => state as State,
+    state: (state:any) => state as State,
   }),
   methods: {
     ...mapActions(["start"]),

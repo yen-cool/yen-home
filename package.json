@@ -20,7 +20,7 @@
     "moment": "^2.29.4",
     "vue": "^3.2.36",
     "vuex": "^4.1.0",
-    "yen-sdk": "^1.0.2"
+    "yen-contract-sdk": "^1.0.3"
   },
   "devDependencies": {
     "@iconify-json/ep": "^1.1.4",

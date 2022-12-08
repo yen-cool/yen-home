@@ -149,7 +149,7 @@ export default {
     await this.getStakeData();
   },
   computed: mapState({
-    state: (state) => state as State,
+    state: (state:any) => state as State,
   }),
   methods: {
     ...mapActions([

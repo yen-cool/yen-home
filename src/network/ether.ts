@@ -1,4 +1,4 @@
-import { YENClient, ERC20Client, DeploymentInfo } from "yen-sdk";
+import { YENClient, ERC20Client, DeploymentInfo } from "yen-contract-sdk";
 import detectEthereumProvider from "@metamask/detect-provider";
 import { ethers, Signer, providers } from "ethers";
 
