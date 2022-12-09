@@ -44,13 +44,12 @@
                   state.sync.thisTime) *
                   1000
               ).toLocaleString()
-            }} (30 Days Halving)
+            }}
+            (30 Days Halving)
           </div>
         </el-form-item>
         <el-form-item label="Transfer Fee :">
-          <div>
-            1 ‰ (50% To Burn, 50% To LP)
-          </div>
+          <div>1 ‰ (50% To Burn, 50% To LP)</div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -72,7 +71,7 @@ export default {
     await this.getTableData();
   },
   computed: mapState({
-    state: (state:any) => state as State,
+    state: (state: any) => state as State,
   }),
   methods: {
     ...mapActions(["getTableData"]),

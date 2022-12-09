@@ -10,6 +10,7 @@
       <el-menu-item index="2" class="item"> Mint </el-menu-item>
       <el-menu-item index="3" class="item"> Stake </el-menu-item>
       <el-menu-item index="4" class="item"> Table </el-menu-item>
+      <el-menu-item index="5" class="item"> Bot </el-menu-item>
       <el-menu-item index="-1" class="item" @click="toggleDark()">
         <button
           class="border-none w-full bg-transparent cursor-pointer"
@@ -28,6 +29,7 @@
       <Mint v-if="activeIndex == '2'"></Mint>
       <Stake v-if="activeIndex == '3'"></Stake>
       <Table v-if="activeIndex == '4'"></Table>
+      <Bot v-if="activeIndex == '5'"></Bot>
     </div>
   </el-config-provider>
 </template>
@@ -53,7 +55,7 @@ export default {
     });
   },
   computed: mapState({
-    state: (state:any) => state as State,
+    state: (state: any) => state as State,
   }),
   methods: {
     ...mapActions(["start"]),

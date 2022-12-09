@@ -64,17 +64,21 @@ export default {
     };
   },
   async created() {
-    await this.getMintData(this.getMintedData);
+    await this.getMintData();
   },
   computed: mapState({
-    state: (state:any) => state as State,
+    state: (state: any) => state as State,
   }),
+  watch: {
+    "state.async.mint.blockMap": {
+      handler: async function () {
+        await this.getMintedData();
+      },
+      deep: true,
+    },
+  },
   methods: {
-    ...mapActions([
-      "getMintData",
-      "mint",
-      "claim"
-    ]),
+    ...mapActions(["getMintData", "mint", "claim"]),
     async getMintedData() {
       const mintedList: {
         block: number;
@@ -84,20 +88,20 @@ export default {
       }[] = [];
       this.state.async.mint.personBlockList.forEach((blockNumber) => {
         if (
-          this.state.async.mint.block[blockNumber] &&
-          !this.state.async.mint.block[blockNumber].mints.eq(0)
+          this.state.async.mint.blockMap[blockNumber] &&
+          !this.state.async.mint.blockMap[blockNumber].mints.eq(0)
         ) {
           mintedList.push({
             block: blockNumber,
             minted: `${utils.format.bigToString(
-              this.state.async.mint.block[blockNumber].mints.div(
-                this.state.async.mint.block[blockNumber].persons
+              this.state.async.mint.blockMap[blockNumber].mints.div(
+                this.state.async.mint.blockMap[blockNumber].persons
               ),
               18
             )} YEN`,
-            person: Number(this.state.async.mint.block[blockNumber].persons),
+            person: Number(this.state.async.mint.blockMap[blockNumber].persons),
             total: `${utils.format.bigToString(
-              this.state.async.mint.block[blockNumber].mints,
+              this.state.async.mint.blockMap[blockNumber].mints,
               18
             )} YEN`,
           });
@@ -115,7 +119,7 @@ export default {
             this.mintLoad = false;
           } else if (e.blockNumber) {
             this.mintLoad = false;
-            await this.getMintData(this.getMintedData);
+            await this.getMintData();
           }
         }
       );
@@ -130,7 +134,7 @@ export default {
             this.claimLoad = false;
           } else if (e.blockNumber) {
             this.claimLoad = false;
-            await this.getMintData(this.getMintedData);
+            await this.getMintData();
           }
         }
       );

@@ -145,24 +145,28 @@ const format = {
     }
   },
 
-  bigToString(big: BigNumber, decimals: number) {
-    let str = big.toString();
-    const change = str.length - decimals;
-    if (change > 0) {
-      str = `${str.substring(0, change)}.${str.substring(change)}`;
-    } else {
-      for (let i = 0; i > change; i--) {
-        str = `0${str}`;
+  bigToString(big: BigNumber | undefined, decimals: number) {
+    if (big) {
+      let str = big.toString();
+      const change = str.length - decimals;
+      if (change > 0) {
+        str = `${str.substring(0, change)}.${str.substring(change)}`;
+      } else {
+        for (let i = 0; i > change; i--) {
+          str = `0${str}`;
+        }
+        str = `0.${str}`;
       }
-      str = `0.${str}`;
+      while (str[str.length - 1] == "0") {
+        str = str.substring(0, str.length - 1);
+      }
+      if (str[str.length - 1] == ".") {
+        str = str.substring(0, str.length - 1);
+      }
+      return str;
+    } else {
+      return "...";
     }
-    while (str[str.length - 1] == "0") {
-      str = str.substring(0, str.length - 1);
-    }
-    if (str[str.length - 1] == ".") {
-      str = str.substring(0, str.length - 1);
-    }
-    return str;
   },
 
   stringToBig(str: string, decimals: number) {
@@ -200,7 +204,7 @@ const format = {
   },
 };
 
-const url ={
+const url = {
   address(chainId: number, address: string) {
     return `${chain[chainId].scan}address/${address}`;
   },
@@ -216,12 +220,12 @@ const url ={
   accounts(chainId: number) {
     return `${chain[chainId].scan}/accounts`;
   },
-}
+};
 
 const go = {
-  url(url:string){
+  url(url: string) {
     window.open(url);
-  }
+  },
 };
 
 const chain: { [CHAIN_ID: string]: Chain } = {

@@ -1,6 +1,6 @@
 import { YENClient, ERC20Client, DeploymentInfo } from "yen-contract-sdk";
 import detectEthereumProvider from "@metamask/detect-provider";
-import { ethers, Signer, providers } from "ethers";
+import { ethers, Signer, providers, Wallet } from "ethers";
 
 export class Ether {
   public ethereum: any;
@@ -12,6 +12,8 @@ export class Ether {
   public chainId: number | undefined;
 
   public yen: YENClient | undefined;
+
+  public bot: YENClient | undefined;
 
   public pair: ERC20Client | undefined;
 
@@ -68,6 +70,15 @@ export class Ether {
           },
         },
       });
+    }
+  }
+
+  async loadBot(wallet: Wallet) {
+    if (this.chainId && this.provider) {
+      this.bot = new YENClient(
+        wallet.connect(this.provider),
+        DeploymentInfo[this.chainId]["YEN"].proxyAddress
+      );
     }
   }
 }

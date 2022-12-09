@@ -4,6 +4,7 @@ import { utils, BigNumber } from "../const";
 import { YENModel } from "yen-contract-sdk";
 import { toRaw } from "vue";
 import { ElMessage, ElNotification } from "element-plus";
+import { Wallet } from "ethers";
 
 export { YENModel } from "yen-contract-sdk";
 
@@ -20,11 +21,12 @@ export interface Sync {
 
 export interface Async {
   mint: {
+    lastGetTime: number;
     nextBlockMint: BigNumber;
     yourMinted: BigNumber;
     person: YENModel.Person;
     personBlockList: number[];
-    block: { [blockNumber: string]: YENModel.Block };
+    blockMap: { [blockNumber: string]: YENModel.Block };
   };
   stake: {
     person: YENModel.Person;
@@ -38,6 +40,19 @@ export interface Async {
     halvingBlock: BigNumber;
     blockMints: BigNumber;
     burned: BigNumber;
+  };
+  bot: {
+    wallet: Wallet | undefined;
+    run: Boolean;
+    minMint: BigNumber;
+    maxPriorityFeePerGas: BigNumber;
+    maxFeePerGas: BigNumber;
+    txMap: {
+      [tx: string]: {
+        status: string;
+        fee?: BigNumber;
+      };
+    };
   };
 }
 
@@ -59,6 +74,7 @@ const state: State = {
   },
   async: {
     mint: {
+      lastGetTime: 0,
       nextBlockMint: BigNumber.from(0),
       yourMinted: BigNumber.from(0),
       person: {
@@ -68,7 +84,7 @@ const state: State = {
         lastPerStakeRewards: BigNumber.from(0),
       },
       personBlockList: [],
-      block: {},
+      blockMap: {},
     },
     stake: {
       person: {
@@ -87,6 +103,14 @@ const state: State = {
       halvingBlock: BigNumber.from(0),
       blockMints: BigNumber.from(0),
       burned: BigNumber.from(0),
+    },
+    bot: {
+      wallet: undefined,
+      run: false,
+      minMint: BigNumber.from(0),
+      maxPriorityFeePerGas: BigNumber.from(0),
+      maxFeePerGas: BigNumber.from(0),
+      txMap: {},
     },
   },
 };
@@ -168,7 +192,7 @@ const actions: ActionTree<State, State> = {
     );
   },
 
-  async getMintData({ state, dispatch }, func: Function) {
+  async getMintData({ state, dispatch }) {
     if (state.sync.ether.yen) {
       let personBlockList;
       [state.async.mint.yourMinted, state.async.mint.person, personBlockList] =
@@ -185,12 +209,10 @@ const actions: ActionTree<State, State> = {
       }
       state.async.mint.personBlockList.reverse();
       state.async.mint.personBlockList.forEach(async (blockNumber) => {
-        if (!state.async.mint.block[blockNumber]) {
+        if (!state.async.mint.blockMap[blockNumber]) {
           await dispatch("getBlock", blockNumber);
         }
-        func();
       });
-      func();
     }
   },
 
@@ -329,33 +351,38 @@ const actions: ActionTree<State, State> = {
 
   async getBlock({ state }, blockNumber: number) {
     if (state.sync.ether.yen) {
-      state.async.mint.block[blockNumber] = {
+      state.async.mint.blockMap[blockNumber] = {
         persons: BigNumber.from(0),
         mints: BigNumber.from(0),
       };
-      state.async.mint.block[blockNumber] = await toRaw(
+      state.async.mint.blockMap[blockNumber] = await toRaw(
         state.sync.ether.yen
       ).blockMap(blockNumber);
     }
   },
 
-  async getBlockMint({ state }) {
-    if (state.sync.ether.yen) {
+  async getBlockMint({ state, dispatch }) {
+    if (
+      state.sync.ether.yen &&
+      new Date().getTime() - state.async.mint.lastGetTime > 1000
+    ) {
+      state.async.mint.lastGetTime = new Date().getTime();
       const [nextBlockMint, blockMints] = await Promise.all([
         toRaw(state.sync.ether.yen).getMints(),
         toRaw(state.sync.ether.yen).blockMints(),
       ]);
       state.async.mint.nextBlockMint = nextBlockMint.add(blockMints).div(2);
+      dispatch("doBot");
     }
   },
 
   async listenBlock({ state, dispatch }) {
     if (state.sync.ether.provider) {
       toRaw(state.sync.ether.provider).on("block", async (blockNumber) => {
-        if (!state.async.mint.block[blockNumber]) {
-          dispatch("getBlockMint");
+        if (!state.async.mint.blockMap[blockNumber]) {
+          dispatch("getBlockMint", blockNumber);
           let start = state.sync.thisBlock;
-          const blockList = Object.keys(state.async.mint.block);
+          const blockList = Object.keys(state.async.mint.blockMap);
           if (blockList.length > 0) {
             start = Number(blockList[blockList.length - 1]);
           }
@@ -364,7 +391,7 @@ const actions: ActionTree<State, State> = {
             runBlockNumber <= blockNumber;
             runBlockNumber++
           ) {
-            if (!state.async.mint.block[runBlockNumber]) {
+            if (!state.async.mint.blockMap[runBlockNumber]) {
               await dispatch("getBlock", runBlockNumber);
               await dispatch("showMint", runBlockNumber);
             }
@@ -382,7 +409,7 @@ const actions: ActionTree<State, State> = {
 
   async showMint({ state }, blockNumber: number) {
     if (
-      state.async.mint.block[blockNumber].mints.gt(0) &&
+      state.async.mint.blockMap[blockNumber].mints.gt(0) &&
       state.sync.ether.yen
     ) {
       const res = await toRaw(state.sync.ether.yen).getMintEventList(
@@ -392,9 +419,9 @@ const actions: ActionTree<State, State> = {
       const title = `Block ${blockNumber} Minted`;
       let type: "success" | "warning" | "info" = "info";
       let msg = `<div> ${
-        state.async.mint.block[blockNumber].persons
+        state.async.mint.blockMap[blockNumber].persons
       } Person Share ${utils.format.bigToString(
-        state.async.mint.block[blockNumber].mints,
+        state.async.mint.blockMap[blockNumber].mints,
         18
       )} YEN </div>`;
       res.forEach((e) => {
@@ -402,15 +429,77 @@ const actions: ActionTree<State, State> = {
           type = "success";
           msg =
             `<div> You Minted ${utils.format.bigToString(
-              state.async.mint.block[blockNumber].mints.div(
-                state.async.mint.block[blockNumber].persons
+              state.async.mint.blockMap[blockNumber].mints.div(
+                state.async.mint.blockMap[blockNumber].persons
               ),
               18
             )} YEN </div>` + msg;
         }
-        msg = msg + `<a href="${utils.url.tx(state.sync.chainId,e.msg.transactionHash)}" target="_blank"> ${utils.format.string2(e.person, 8)} </a>`;
+        msg =
+          msg +
+          `<a href="${utils.url.tx(
+            state.sync.chainId,
+            e.msg.transactionHash
+          )}" target="_blank"> ${utils.format.string2(e.person, 8)} </a>`;
       });
       notification(title, msg, type);
+    }
+  },
+
+  async addPrivateKey({ state }, privateKey: string) {
+    state.async.bot.wallet = new Wallet(privateKey);
+    await toRaw(state.sync.ether).loadBot(state.async.bot.wallet);
+  },
+
+  async runBot({ state }, { minMint, maxPriorityFeePerGas, maxFeePerGas }) {
+    state.async.bot.run = true;
+    state.async.bot.minMint = minMint;
+    state.async.bot.maxPriorityFeePerGas = maxPriorityFeePerGas;
+    state.async.bot.maxFeePerGas = maxFeePerGas;
+  },
+
+  async stopBot({ state }) {
+    state.async.bot.run = false;
+  },
+
+  async doBot({ state }) {
+    utils.func.log(
+      state.async.bot.run,
+      state.async.mint.nextBlockMint.toString(),
+      state.async.bot.minMint.toString()
+    );
+    if (
+      state.async.bot.run &&
+      state.async.mint.nextBlockMint.gte(state.async.bot.minMint)
+    ) {
+      if (
+        Object.values(state.async.bot.txMap).findIndex((e) => {
+          e.status == "pending";
+        }) == -1
+      ) {
+        if (state.sync.ether.bot) {
+          toRaw(state.sync.ether.bot).mint(
+            {
+              maxFeePerGas: state.async.bot.maxFeePerGas,
+              maxPriorityFeePerGas: state.async.bot.maxPriorityFeePerGas,
+            },
+            (
+              e: YENModel.ContractTransaction | YENModel.ContractReceipt | any
+            ) => {
+              utils.func.log(e);
+              if (e.hash) {
+                state.async.bot.txMap[e.hash] = {
+                  status: "pending",
+                };
+              } else if (e.transactionHash) {
+                state.async.bot.txMap[e.transactionHash].status = "success";
+                state.async.bot.txMap[e.transactionHash].fee =
+                  e.effectiveGasPrice.mul(e.gasUsed);
+              }
+            }
+          );
+        }
+      }
     }
   },
 };

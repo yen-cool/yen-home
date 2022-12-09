@@ -128,7 +128,7 @@
 </template>
 
 <script lang="ts">
-import { utils, BigNumber } from "../const";
+import { utils } from "../const";
 import { mapState, mapActions } from "vuex";
 import { State, YENModel } from "../store";
 
@@ -149,7 +149,7 @@ export default {
     await this.getStakeData();
   },
   computed: mapState({
-    state: (state:any) => state as State,
+    state: (state: any) => state as State,
   }),
   methods: {
     ...mapActions([
