@@ -52,7 +52,6 @@
 import { utils } from "../const";
 import { mapState, mapActions } from "vuex";
 import { State, YENModel } from "../store";
-import { ElNotification } from "element-plus";
 
 export default {
   data() {
@@ -148,7 +147,7 @@ export default {
 }
 
 .box-card {
-  width: 40%;
+  width: 700px;
   margin-left: auto;
   margin-right: auto;
 }

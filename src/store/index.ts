@@ -408,7 +408,7 @@ const actions: ActionTree<State, State> = {
               18
             )} YEN </div>` + msg;
         }
-        msg = msg + `<div> ${utils.format.string2(e.person, 8)} </div>`;
+        msg = msg + `<a href="${utils.url.tx(state.sync.chainId,e.msg.transactionHash)}" target="_blank"> ${utils.format.string2(e.person, 8)} </a>`;
       });
       notification(title, msg, type);
     }

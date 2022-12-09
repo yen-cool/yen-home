@@ -200,23 +200,25 @@ const format = {
   },
 };
 
-const go = {
+const url ={
   address(chainId: number, address: string) {
-    window.open(`${chain[chainId].scan}address/${address}`);
+    return `${chain[chainId].scan}address/${address}`;
   },
 
   token(chainId: number, address: string) {
-    window.open(`${chain[chainId].scan}token/${address}`);
+    return `${chain[chainId].scan}token/${address}`;
   },
 
   tx(chainId: number, tx: string) {
-    window.open(`${chain[chainId].scan}tx/${tx}`);
+    return `${chain[chainId].scan}tx/${tx}`;
   },
 
   accounts(chainId: number) {
-    window.open(`${chain[chainId].scan}/accounts`);
+    return `${chain[chainId].scan}/accounts`;
   },
+}
 
+const go = {
   url(url:string){
     window.open(url);
   }
@@ -250,6 +252,7 @@ export const utils = {
   have,
   format,
   go,
+  url,
   convert,
   etherUtils,
   chain,
