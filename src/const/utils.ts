@@ -216,6 +216,10 @@ const go = {
   accounts(chainId: number) {
     window.open(`${chain[chainId].scan}/accounts`);
   },
+
+  url(url:string){
+    window.open(url);
+  }
 };
 
 const chain: { [CHAIN_ID: string]: Chain } = {
