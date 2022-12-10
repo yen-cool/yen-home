@@ -40,10 +40,12 @@ export interface Async {
     halvingBlock: BigNumber;
     blockMints: BigNumber;
     burned: BigNumber;
+    YENPoolBalance: BigNumber;
+    ETHPoolBalance: BigNumber;
   };
   bot: {
     wallet: Wallet | undefined;
-    run: Boolean;
+    run: boolean;
     minMint: BigNumber;
     maxPriorityFeePerGas: BigNumber;
     maxFeePerGas: BigNumber;
@@ -103,6 +105,8 @@ const state: State = {
       halvingBlock: BigNumber.from(0),
       blockMints: BigNumber.from(0),
       burned: BigNumber.from(0),
+      YENPoolBalance: BigNumber.from(0),
+      ETHPoolBalance: BigNumber.from(0),
     },
     bot: {
       wallet: undefined,
@@ -230,9 +234,6 @@ const actions: ActionTree<State, State> = {
         toRaw(state.sync.ether.yen).pair(),
         toRaw(state.sync.ether.yen).stakes(),
       ]);
-      if (!state.sync.ether.pair && pairAddress != utils.num.min) {
-        toRaw(state.sync.ether).loadPair(pairAddress);
-      }
       if (state.sync.ether.pair) {
         state.async.stake.yourPairs = await toRaw(
           state.sync.ether.pair
@@ -248,18 +249,26 @@ const actions: ActionTree<State, State> = {
   },
 
   async getTableData({ state }) {
-    if (state.sync.ether.yen) {
+    if (state.sync.ether.yen && state.sync.ether.weth) {
+      let pairAddress;
       [
         state.async.table.totalSupply,
         state.async.table.halvingBlock,
         state.async.table.blockMints,
         state.async.table.burned,
+        pairAddress,
       ] = await Promise.all([
         toRaw(state.sync.ether.yen).totalSupply(),
         toRaw(state.sync.ether.yen).halvingBlock(),
         toRaw(state.sync.ether.yen).blockMints(),
         toRaw(state.sync.ether.yen).balanceOf(utils.num.min),
+        toRaw(state.sync.ether.yen).pair(),
       ]);
+      [state.async.table.YENPoolBalance, state.async.table.ETHPoolBalance] =
+        await Promise.all([
+          toRaw(state.sync.ether.yen).balanceOf(pairAddress),
+          toRaw(state.sync.ether.weth).balanceOf(pairAddress),
+        ]);
     }
   },
 
@@ -463,20 +472,17 @@ const actions: ActionTree<State, State> = {
   },
 
   async doBot({ state }) {
-    utils.func.log(
-      state.async.bot.run,
-      state.async.mint.nextBlockMint.toString(),
-      state.async.bot.minMint.toString()
-    );
     if (
       state.async.bot.run &&
       state.async.mint.nextBlockMint.gte(state.async.bot.minMint)
     ) {
-      if (
-        Object.values(state.async.bot.txMap).findIndex((e) => {
-          e.status == "pending";
-        }) == -1
-      ) {
+      let have = false;
+      Object.values(state.async.bot.txMap).forEach((e) => {
+        if (e.status == "pending") {
+          have = true;
+        }
+      });
+      if (!have) {
         if (state.sync.ether.bot) {
           toRaw(state.sync.ether.bot).mint(
             {
@@ -486,7 +492,6 @@ const actions: ActionTree<State, State> = {
             (
               e: YENModel.ContractTransaction | YENModel.ContractReceipt | any
             ) => {
-              utils.func.log(e);
               if (e.hash) {
                 state.async.bot.txMap[e.hash] = {
                   status: "pending",

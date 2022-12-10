@@ -17,6 +17,8 @@ export class Ether {
 
   public pair: ERC20Client | undefined;
 
+  public weth: ERC20Client | undefined;
+
   async load() {
     this.ethereum = (await detectEthereumProvider()) as any;
     if (this.ethereum) {
@@ -35,6 +37,11 @@ export class Ether {
           this.singer,
           DeploymentInfo[this.chainId]["YEN"].proxyAddress
         );
+        this.pair = new ERC20Client(this.singer, await this.yen.pair());
+        this.weth = new ERC20Client(
+          this.singer,
+          "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+        );
       } else {
         await this.ethereum.request({
           method: "wallet_switchEthereumChain",
@@ -47,12 +54,6 @@ export class Ether {
       }
     } else {
       throw "Please use a browser that supports web3 to open";
-    }
-  }
-
-  loadPair(address: string) {
-    if (this.singer) {
-      this.pair = new ERC20Client(this.singer, address);
     }
   }
 

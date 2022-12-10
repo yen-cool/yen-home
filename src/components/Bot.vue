@@ -12,7 +12,11 @@
           <div v-else>{{ state.async.bot.wallet.address }}</div>
         </el-form-item>
         <el-form-item label="minMint :">
-          <el-input v-model="minMint" type="string" :disabled="minMintDisabled">
+          <el-input
+            v-model="minMint"
+            type="string"
+            :disabled="state.async.bot.run"
+          >
             <template #append> YEN </template></el-input
           >
         </el-form-item>
@@ -20,7 +24,7 @@
           <el-input
             v-model="maxFeePerGas"
             type="string"
-            :disabled="maxFeePerGasDisabled"
+            :disabled="state.async.bot.run"
           >
             <template #append> Gwei </template>
           </el-input>
@@ -29,13 +33,17 @@
           <el-input
             v-model="maxPriorityFeePerGas"
             type="string"
-            :disabled="maxPriorityFeePerGasDisabled"
+            :disabled="state.async.bot.run"
           >
             <template #append> Gwei </template></el-input
           >
         </el-form-item>
         <el-form-item label="Change State :">
-          <el-button type="primary" @click="start" v-if="!state.async.bot.run"
+          <el-button
+            type="primary"
+            @click="start"
+            v-if="!state.async.bot.run"
+            :disabled="state.async.bot.wallet == undefined"
             >Start</el-button
           >
           <el-button type="primary" @click="stop" v-else>Stop</el-button>
@@ -49,7 +57,7 @@
             label="TransactionHash"
             width="300"
           />
-          <el-table-column prop="fee" label="Fee" width="150" />
+          <el-table-column prop="fee" label="Fee" width="200" />
           <el-table-column prop="status" label="Status" />
         </el-table>
       </el-form>
@@ -78,18 +86,28 @@ export default {
   data() {
     return {
       utils: utils,
-      maxFeePerGas: "20",
+      maxFeePerGas: "30",
       maxPriorityFeePerGas: "1",
       minMint: "100",
       dialogVisible: false,
       privateKey: "",
       botList: [],
-      minMintDisabled: false,
-      maxFeePerGasDisabled: false,
-      maxPriorityFeePerGasDisabled: false,
     };
   },
-  async created() {},
+  async created() {
+    if (this.state.async.bot.maxFeePerGas.gt(0)) {
+      this.maxFeePerGas = utils.format.bigToString(
+        this.state.async.bot.maxFeePerGas,
+        9
+      );
+      this.maxPriorityFeePerGas = utils.format.bigToString(
+        this.state.async.bot.maxPriorityFeePerGas,
+        9
+      );
+      this.minMint = utils.format.bigToString(this.state.async.bot.minMint, 18);
+    }
+    this.setBotList();
+  },
   computed: mapState({
     state: (state: any) => state as State,
   }),
@@ -119,6 +137,7 @@ export default {
           status: this.state.async.bot.txMap[transactionHash].status,
         });
       });
+      botList.reverse();
       this.botList = botList as any;
     },
     async confirm() {
@@ -128,9 +147,6 @@ export default {
     },
     async start() {
       if (this.state.async.bot.wallet) {
-        this.minMintDisabled = true;
-        this.maxFeePerGasDisabled = true;
-        this.maxPriorityFeePerGasDisabled = true;
         await this.runBot({
           minMint: utils.format.stringToBig(this.minMint, 18),
           maxPriorityFeePerGas: utils.format.stringToBig(
@@ -143,9 +159,6 @@ export default {
     },
     async stop() {
       await this.stopBot();
-      this.minMintDisabled = false;
-      this.maxFeePerGasDisabled = false;
-      this.maxPriorityFeePerGasDisabled = false;
     },
   },
 };

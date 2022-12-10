@@ -51,6 +51,19 @@
         <el-form-item label="Transfer Fee :">
           <div>1 ‰ (50% To Burn, 50% To LP)</div>
         </el-form-item>
+        <el-form-item label="LP Balance :">
+          <div>
+            {{
+              `${utils.format.bigToString(
+                state.async.table.YENPoolBalance,
+                18
+              )} YEN / ${utils.format.bigToString(
+                state.async.table.ETHPoolBalance,
+                18
+              )} WETH`
+            }}
+          </div>
+        </el-form-item>
       </el-form>
     </el-card>
   </div>
