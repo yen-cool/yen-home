@@ -65,6 +65,7 @@ export default {
   },
   async created() {
     await this.getMintData();
+    this.getMintedData();
   },
   computed: mapState({
     state: (state: any) => state as State,
